@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>English House Drills</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:#19273a;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}header{background:#142840;color:white;padding:22px max(20px,calc((100vw - 1120px)/2));display:flex;align-items:center;justify-content:space-between;gap:12px}h1{font-size:22px;margin:0}header p{color:#b9d4e9;margin:5px 0 0;font-size:13px}main{max-width:1120px;margin:28px auto;padding:0 18px}.grid{display:grid;grid-template-columns:290px 1fr;gap:22px}.panel{background:white;border:1px solid #e2eaf2;border-radius:16px;padding:22px;box-shadow:0 4px 24px #15344a0a}.muted{color:#698093;font-size:13px}label{display:block;font-size:13px;font-weight:650;margin:16px 0 6px}select,textarea,input[type=file]{width:100%;padding:10px;border:1px solid #cad8e5;border-radius:9px;background:#fff;color:#21374d}textarea{min-height:120px;resize:vertical;font:inherit;line-height:1.5}.btn{border:0;border-radius:10px;padding:11px 15px;background:#1976a7;color:white;font-weight:650;cursor:pointer}.btn.secondary{background:#eaf1f7;color:#213f5a}.btn.good{background:#167450}.btn.bad{background:#b25841}.btn:disabled{opacity:.4;cursor:default}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.statrow{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:15px 0}.stat{padding:12px;background:#f1f6fb;border-radius:10px}.stat b{display:block;font-size:22px}.stat span{font-size:11px;color:#647a90}.pill{display:inline-flex;padding:5px 9px;border-radius:999px;background:#e6f3f9;color:#12608c;font-size:12px;font-weight:700}.term{font-size:35px;letter-spacing:-1px;margin:17px 0 4px}.meaning{font-size:18px;color:#425b73;margin:0 0 22px}.reference{background:#f5f9fb;padding:16px;border-left:3px solid #65b0c9;border-radius:8px;white-space:pre-wrap;line-height:1.5}.hidden{display:none}.note{font-size:12px;line-height:1.5;color:#698093}.progress{height:9px;background:#e5edf4;border-radius:99px;overflow:hidden;margin:10px 0}.progress i{display:block;height:100%;background:#2e9a91}.empty{text-align:center;padding:55px 15px;color:#5b7185}@media(max-width:760px){.grid{grid-template-columns:1fr}header{padding:20px}main{margin:14px auto}.term{font-size:29px}}
+</style></head><body>
+<header><div><h1>English House Drills</h1><p>Prática deliberada · um exercício por vez</p></div><span id="data-status" class="pill">Aguardando planilha</span></header>
+<main><div class="grid"><aside class="panel">
+<strong>Seu material de estudo</strong><p class="muted">Importe o arquivo Excel original. A leitura é feita localmente no navegador.</p>
+<input aria-label="Importar planilha" id="xlsx" type="file" accept=".xlsx,.xls">
+<label for="category">Tempo verbal / módulo</label><select id="category"><option value="">Todos os módulos</option></select>
+<label for="mode">Fila de estudo</label><select id="mode"><option value="pending">Pendentes e para revisar</option><option value="all">Todos</option><option value="errors">Somente erros</option><option value="new">Nunca praticados</option></select>
+<div class="statrow"><div class="stat"><b id="total">0</b><span>Exercícios</span></div><div class="stat"><b id="done">0</b><span>Feitos</span></div><div class="stat"><b id="accuracy">—</b><span>Acertos</span></div></div>
+<div class="progress"><i id="bar" style="width:0%"></i></div>
+<div class="actions"><button id="backup" class="btn secondary">Exportar progresso</button><button id="restore" class="btn secondary">Importar progresso</button><input id="backupfile" class="hidden" type="file" accept=".json"></div>
+<p class="note">O progresso fica salvo neste navegador. Exporte um backup antes de trocar de computador ou limpar os dados do navegador.</p>
+</aside><section class="panel"><div id="empty" class="empty"><h2>Vamos praticar?</h2><p>Selecione a planilha <b>[Alfranio] House Drills.xlsx</b> para carregar os exercícios.</p></div>
+<div id="exercise" class="hidden"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span id="tag" class="pill"></span><span id="counter" class="muted"></span></div>
+<h2 id="term" class="term"></h2><p id="meaning" class="meaning"></p><p id="instruction" class="muted"></p>
+<label for="answer">Sua frase em inglês</label><textarea id="answer" placeholder="Write your own sentence in English..."></textarea>
+<div class="actions"><button class="btn" id="reveal">Conferir referência</button><button class="btn secondary" id="skip">Pular</button></div>
+<div id="revealed" class="hidden"><label>Frase registrada na planilha</label><div class="reference" id="reference"></div><p id="historic" class="muted"></p><p class="note">Compare sua frase com a referência. A referência pode conter erros de origem; esta versão não faz correção automática por IA.</p><div class="actions"><button class="btn good" id="correct">Acertei / frase adequada</button><button class="btn bad" id="wrong">Preciso revisar</button></div></div>
+</div></section></div></main>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id), KEY='english-house-drills-progress-v1';
+let items=[],progress={},queue=[],index=0,active=null;
+try{progress=JSON.parse(localStorage.getItem(KEY)||'{}')}catch{progress={}}
+const clean=x=>String(x??'').replace(/\s+/g,' ').trim();
+const hash=s=>{let h=2166136261;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return(h>>>0).toString(36)};
+function parse(book){let out=[];
+for(const name of book.SheetNames){let rows=XLSX.utils.sheet_to_json(book.Sheets[name],{header:1,defval:''});let compound=/compound/i.test(name),adj=/adjectiv/i.test(name),pastIr=/irregular/i.test(name),futureWill=/future.*will/i.test(name),sentenceCol=compound?2:pastIr?3:futureWill?3:4,translationCol=compound?1:1;
+if(adj)sentenceCol=2;
+rows.forEach((r,n)=>{let word=clean(r[0]),meaning=clean(r[translationCol]);if(!word||!meaning||/^(infinitive|adjective|compound|keyboardx|simple|table of|appearance|noun|verb)$/i.test(word)||/^(tradução|translation|translated|meaning in portuguese|escreva)/i.test(meaning))return;
+if(word.length>95||meaning.length>150)return;
+let example=clean(r[sentenceCol]),mark=clean(r[sentenceCol+1]),extra=clean(r[sentenceCol+2]);
+if(compound){mark=[clean(r[3]),clean(r[4])].join(' ');extra=clean(r[6])}
+const id=hash(name+'|'+n+'|'+word);out.push({id,category:name,word,meaning,example,mark,extra,row:n+1});});}
+return out}
+function refresh(){const categories=[...new Set(items.map(x=>x.category))];let selected=$('category').value;$('category').innerHTML='<option value="">Todos os módulos</option>';for(let cat of categories){let o=document.createElement('option');o.value=cat;o.textContent=cat;$('category').append(o)}$('category').value=categories.includes(selected)?selected:'';
+$('total').textContent=items.length;let done=items.filter(x=>progress[x.id]?.attempts).length,records=items.map(x=>progress[x.id]).filter(Boolean),hits=records.reduce((a,x)=>a+(x.correct||0),0),attempts=records.reduce((a,x)=>a+(x.attempts||0),0);
+$('done').textContent=done;$('accuracy').textContent=attempts?Math.round(hits/attempts*100)+'%':'—';$('bar').style.width=(items.length?done/items.length*100:0)+'%';$('data-status').textContent=items.length?items.length+' exercícios carregados':'Aguardando planilha'}
+function buildQueue(){let cat=$('category').value,mode=$('mode').value;queue=items.filter(x=>(!cat||x.category===cat)&& (mode==='all'||(mode==='new'?!progress[x.id]?.attempts:mode==='errors'?progress[x.id]?.lastCorrect===false:(!progress[x.id]?.attempts||progress[x.id]?.lastCorrect===false))));index=0;show()}
+function show(){if(!queue.length){$('empty').classList.remove('hidden');$('exercise').classList.add('hidden');$('empty').innerHTML='<h2>Nenhum exercício nesta fila</h2><p>Escolha outro módulo ou use “Todos” para revisar.</p>';return}active=queue[index%queue.length];$('empty').classList.add('hidden');$('exercise').classList.remove('hidden');$('tag').textContent=active.category;$('counter').textContent=(index%queue.length+1)+' / '+queue.length;$('term').textContent=active.word;$('meaning').textContent=active.meaning;$('instruction').textContent='Construa uma frase usando o termo no contexto de '+active.category+'.';$('answer').value='';$('revealed').classList.add('hidden');$('reveal').disabled=false;$('answer').focus()}
+function next(){index++;if(index>=queue.length)index=0;show()}
+function grade(correct){if(!active)return;let previous=progress[active.id]||{attempts:0,correct:0};progress[active.id]={attempts:previous.attempts+1,correct:previous.correct+(correct?1:0),lastCorrect:correct,lastAnswer:$('answer').value.trim(),updatedAt:new Date().toISOString()};localStorage.setItem(KEY,JSON.stringify(progress));refresh();buildQueue()}
+$('xlsx').addEventListener('change',async e=>{let f=e.target.files[0];if(!f)return;try{if(!window.XLSX)throw Error('Biblioteca XLSX indisponível. Verifique a conexão com a internet.');let buf=await f.arrayBuffer();items=parse(XLSX.read(buf,{type:'array'}));if(!items.length)throw Error('Nenhum exercício reconhecido.');refresh();buildQueue()}catch(err){alert('Falha ao importar planilha: '+err.message)}});
+$('category').addEventListener('change',buildQueue);$('mode').addEventListener('change',buildQueue);
+$('reveal').onclick=()=>{if(!active)return;$('reference').textContent=active.example||'Ainda não há frase preenchida nesta linha da planilha. Crie sua própria frase e avalie o resultado.';$('historic').textContent='Registro original: '+(active.mark||'sem marcação')+(active.extra?' · Observação: '+active.extra:'');$('revealed').classList.remove('hidden');$('reveal').disabled=true};
+$('correct').onclick=()=>grade(true);$('wrong').onclick=()=>grade(false);$('skip').onclick=next;
+$('backup').onclick=()=>{let blob=new Blob([JSON.stringify({version:1,progress,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='english-house-drills-progresso.json';a.click();URL.revokeObjectURL(a.href)};
+$('restore').onclick=()=>$('backupfile').click();$('backupfile').onchange=async e=>{try{let p=JSON.parse(await e.target.files[0].text());if(!p.progress||typeof p.progress!=='object'||Array.isArray(p.progress))throw Error('Backup inválido');progress=p.progress;localStorage.setItem(KEY,JSON.stringify(progress));refresh();buildQueue()}catch(err){alert(err.message)}};
+})();
+</script></body></html>
